@@ -1,0 +1,1091 @@
+import React, { useState, useRef, useEffect } from "react";
+import { 
+  Send, Paperclip, Link as LinkIcon, Image as ImageIcon, 
+  TrendingUp, AlignLeft, ExternalLink, ShieldCheck, 
+  Copy, RefreshCw, Square, ChevronDown, Plus, ArrowUp, Globe, Zap, Brain, UploadCloud, Info, ThumbsUp, ThumbsDown, Cpu,
+  AlertTriangle, Pencil, Menu
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import ReactMarkdown from "react-markdown";
+import { translations } from "../services/translations";
+
+function AIAvatar() {
+  return (
+    <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm mt-0.5 overflow-hidden">
+      <img src="/logo1.png" alt="Factize" className="w-full h-full object-cover" />
+    </div>
+  );
+}
+
+function ShimmerLoader({ message }) {
+  return (
+    <div className="flex items-center gap-3 py-2 min-w-[200px] px-2">
+      <div className="flex gap-1.5">
+        <span className="w-2.5 h-2.5 bg-[#21302A]/40 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+        <span className="w-2.5 h-2.5 bg-[#21302A]/40 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+        <span className="w-2.5 h-2.5 bg-[#21302A]/40 rounded-full animate-bounce"></span>
+      </div>
+      <span className="text-[15px] text-[#21302A]/70 font-medium ml-2 animate-pulse">
+        {message || "Factize memproses..."}
+      </span>
+    </div>
+  );
+}
+
+function RAGSourcesAccordion({ sources, language }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!sources || sources.length === 0) return null;
+
+  return (
+    <div className="mt-4 pt-4 border-t border-[#21302A]/8 w-full text-left">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full px-4 py-2.5 bg-[#F7F4E9] hover:bg-[#E8E4D8] border border-[#21302A]/10 rounded-xl text-sm font-semibold text-[#21302A] transition-all active:scale-[0.98] cursor-pointer"
+      >
+        <span className="flex items-center gap-2">
+          <Globe className="w-4 h-4 text-[#5C6E60]" />
+          {language === "en" ? "View Reference Sources" : "Lihat Sumber Referensi"} ({sources.length})
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 opacity-60 transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="mt-3 space-y-3 pl-1 pr-1 pb-2">
+              {sources.map((src, idx) => (
+                <div
+                  key={idx}
+                  className="p-3.5 bg-white border border-[#21302A]/10 rounded-xl shadow-xs text-xs space-y-1.5"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <h4 className="font-bold text-[#21302A] leading-tight">
+                      {src.title || (language === "en" ? "Untitled Reference" : "Referensi Tanpa Judul")}
+                    </h4>
+                    {src.href && (
+                      <a
+                        href={src.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 font-semibold flex-shrink-0"
+                      >
+                        {language === "en" ? "Visit" : "Kunjungi"} <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                  {src.body && (
+                    <p className="text-[#5C6E60] leading-relaxed line-clamp-3 hover:line-clamp-none transition-all duration-300">
+                      {src.body}
+                    </p>
+                  )}
+                  {src.href && (
+                    <span className="text-[10px] text-[#21302A]/40 block truncate">
+                      {src.href}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+const PILL =
+  "flex-shrink-0 flex items-center gap-1 md:gap-2 px-2.5 py-1.5 md:px-4 md:py-2 rounded-full text-[10px] md:text-sm font-medium border border-[#21302A]/12 bg-[#F7F4E9] text-[#21302A] hover:bg-[#E8E4D8] transition-all duration-150 cursor-pointer select-none active:scale-[0.97]";
+
+const ACTION_BTN = 
+  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium text-[#5C6E60] hover:bg-[#21302A]/5 hover:text-[#21302A] transition-colors active:scale-95 leading-none";
+
+const jellyInputVariants = {
+  visible: {
+    y: 0,
+    opacity: 1,
+    scaleY: 1,
+    scaleX: 1,
+    transition: {
+      type: "spring",
+      stiffness: 280,
+      damping: 22,
+      mass: 0.6
+    }
+  },
+  hidden: {
+    y: 100,
+    opacity: 0,
+    scaleY: (typeof window !== "undefined" && window.innerWidth < 768) ? 1 : 0.6,
+    scaleX: (typeof window !== "undefined" && window.innerWidth < 768) ? 1 : 0.94,
+    transition: {
+      type: "spring",
+      stiffness: 320,
+      damping: 24,
+      mass: 0.5
+    }
+  }
+};
+
+export function ChatArea({ isSidebarOpen, onToggleSidebar, onOpenInfo, messages, onSendMessage, onEditSendMessage, isLoading, onStopGeneration, onRegenerate, selectedModel, onModelChange, language, isMobileMenuOpen }) {
+  const t = translations[language || "id"];
+
+  const ALTERNATIVE_PHRASES = language === "en" ? [
+    "What do you want to check today?",
+    "Discover the truth of news & rumors.",
+    "Verify info with Factize AI.",
+    "Investigate the truth of info here.",
+    "Filter hoaxes instantly & accurately."
+  ] : [
+    "Apa yang ingin Anda cek hari ini?",
+    "Temukan kebenaran berita & rumor.",
+    "Verifikasi info dengan Factize AI.",
+    "Selidiki kebenaran informasi di sini.",
+    "Saring hoaks secara instan & akurat."
+  ];
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [inputText, setInputText] = useState("");
+  const [attachments, setAttachments] = useState([]);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const inputRef = useRef(null);
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [feedbackState, setFeedbackState] = useState({});
+  const dragCounter = useRef(0);
+
+  const realMessages = messages ? messages.filter(m => m.id !== 'welcome' && m.id !== 'welcome-new') : [];
+  const hasConversation = realMessages.length > 0;
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
+
+  const handleSend = (text) => {
+    const content = text ?? inputText;
+    if (content.trim() || attachments.length > 0) {
+      onSendMessage(content, attachments.length > 0 ? attachments : undefined);
+      setInputText("");
+      setAttachments([]);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (items) {
+      const pastedFiles = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf("image") !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            const pastedFile = new File([file], `pasted_image_${Date.now()}.png`, { type: file.type });
+            pastedFiles.push(pastedFile);
+          }
+        }
+      }
+      if (pastedFiles.length > 0) {
+        e.preventDefault();
+        setAttachments((prev) => [...prev, ...pastedFiles]);
+      }
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const files = e.target.files;
+    if (files) setAttachments(Array.from(files));
+  };
+
+  const formatTime = (date) => {
+    const d = new Date(date);
+    return d.toLocaleTimeString(language === "en" ? "en-US" : "id-ID", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  // URL Detection Regex
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const detectedUrls = inputText.match(urlRegex) || [];
+
+  const handleFeedback = (msgId, type) => {
+    setFeedbackState(prev => ({
+      ...prev,
+      [msgId]: prev[msgId] === type ? null : type // Toggle feedback
+    }));
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounter.current = 0;
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      const validFiles = files.filter(file => file.type.startsWith('image/') || file.type === 'application/pdf');
+      
+      if (validFiles.length > 0) {
+        setAttachments(prev => [...prev, ...validFiles]);
+      }
+    }
+  };
+
+  return (
+    <div 
+      className="flex-1 flex flex-col h-full bg-[#FFFDF6] min-w-0 relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      
+      {/* ── Drag & Drop Overlay ── */}
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-[#FFFDF6]/80 backdrop-blur-sm"
+          >
+            <div className="flex flex-col items-center justify-center w-[calc(100%-3rem)] h-[calc(100%-3rem)] border-[3px] border-dashed border-[#21302A]/20 rounded-[32px] bg-white/40 shadow-2xl pointer-events-none transition-all duration-300">
+              <div className="w-20 h-20 bg-[#E5EBE8] rounded-full flex items-center justify-center mb-6 animate-bounce shadow-inner">
+                <UploadCloud className="w-10 h-10 text-[#21302A]" />
+              </div>
+              <h2 className="text-3xl font-extrabold font-serif text-[#21302A] mb-3 tracking-tight drop-shadow-sm">{t.dropFiles}</h2>
+              <p className="text-[#5C6E60] font-medium bg-[#F7F4E9] px-4 py-1.5 rounded-full text-sm shadow-sm border border-[#21302A]/5">{t.supportFiles}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Header (Desktop Only) ── */}
+      <div className="hidden lg:flex border-b border-[#21302A]/8 bg-[#FFFDF6] px-4 py-3 lg:pl-6 flex items-center gap-3 z-10 shadow-sm relative h-[60px]">
+        
+        {/* Desktop Header Left (Model Selector) */}
+        <div className="relative">
+          <button 
+            onClick={() => setShowModelDropdown(!showModelDropdown)}
+            className="flex items-center gap-1.5 bg-transparent rounded-md px-2 py-1.5 text-sm font-semibold text-[#21302A] hover:bg-[#21302A]/5 transition-colors"
+          >
+            {selectedModel === 'gemini-2.5-flash' ? <><Zap className="w-4 h-4 text-amber-500" fill="currentColor" /> {t.flashMode}</> : <><Brain className="w-4 h-4 text-indigo-500" /> {t.deepFactCheck}</>}
+            <ChevronDown className="w-4 h-4 opacity-60 ml-1" />
+          </button>
+          
+          {showModelDropdown && (
+            <div className="absolute left-0 top-full mt-1 w-56 bg-white border border-[#21302A]/10 rounded-xl shadow-lg py-1.5 z-50">
+              <button 
+                onClick={() => { onModelChange('gemini-2.5-flash'); setShowModelDropdown(false); }}
+                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#F7F4E9] flex items-center gap-2 ${selectedModel === 'gemini-2.5-flash' ? 'font-bold bg-[#F7F4E9]' : ''}`}
+              >
+                <Zap className="w-4 h-4 text-amber-500" fill="currentColor" /> {t.flashMode} <span className="ml-auto text-[10px] text-[#5C6E60]">{t.fast}</span>
+              </button>
+              <button 
+                onClick={() => { onModelChange('gemini-2.5-pro'); setShowModelDropdown(false); }}
+                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#F7F4E9] flex items-center gap-2 ${selectedModel === 'gemini-2.5-pro' ? 'font-bold bg-[#F7F4E9]' : ''}`}
+              >
+                <Brain className="w-4 h-4 text-indigo-500" /> {t.deepFactCheck} <span className="ml-auto text-[10px] text-[#5C6E60]">{t.pro}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Header Right (Info Modal) */}
+        <div className="flex flex-1 justify-end items-center gap-2">
+          <button 
+            onClick={onOpenInfo}
+            className="flex items-center gap-1.5 text-[#5C6E60] hover:text-[#21302A] hover:bg-[#21302A]/5 px-2.5 py-1.5 rounded-md transition-colors text-sm font-medium"
+          >
+            <Info className="w-4 h-4" /> Info
+          </button>
+        </div>
+      </div>
+
+
+
+      {/* ── Messages ── */}
+      {hasConversation && (
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 pt-[70px] pb-4 lg:py-8 sidebar-scroll scroll-smooth z-10" onClick={() => setShowModelDropdown(false)}>
+        <div className="max-w-3xl mx-auto flex flex-col gap-5 md:gap-8 pb-4">
+          {realMessages.map((message, index) => {
+            const isUser = message.sender === "user";
+            const isLastMessage = index === realMessages.length - 1;
+            const isEmptyAi = !isUser && message.text === "" && message.isStreaming;
+
+            // Split RAG sources if present in AI response
+            const textToRender = message.text || "";
+            const parts = textToRender.split("=== RAG SOURCES ===");
+            const mainText = parts[0] || "";
+            let ragSources = [];
+            if (parts[1]) {
+               try {
+                ragSources = JSON.parse(parts[1].trim());
+              } catch (e) {
+                // Ignore parse errors during active streaming
+              }
+            }
+
+            return (
+              <div
+                key={message.id}
+                className={`flex animate-fadeIn group relative w-full ${
+                  isUser
+                    ? "justify-end"
+                    : "justify-start items-start"
+                }`}
+              >
+
+                <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-[90%] md:max-w-[80%] w-full`}>
+                  <div
+                    className={`${
+                      isUser
+                        ? "bg-[#2A3A34] text-[#FFFDF6] rounded-[20px] rounded-tr-[4px] px-5 pt-5 pb-4 shadow-sm"
+                        : "bg-transparent text-[#21302A] px-1 pt-2 pb-2"
+                    } w-full`}
+                  >
+                    
+                    {/* Render Image first in user bubble if any, with padding below */}
+                    {message.attachments && message.attachments.length > 0 && (
+                      <div className={`space-y-2 w-full ${message.text ? "mb-4" : ""}`}>
+                        {message.attachments.map((att, idx) => {
+                          const isImage = att.type?.startsWith('image/');
+                          return (
+                            <div key={idx} className="relative group overflow-hidden rounded-[14px] max-w-full md:max-w-[280px]">
+                              {isImage && att.data ? (
+                                <img src={att.data} alt={att.name} className="w-full object-cover rounded-[14px]" />
+                              ) : (
+                                <div className="bg-[#FFFDF6] border border-[#21302A]/10 px-4 py-3 rounded-[12px] flex items-center gap-3">
+                                  <Paperclip className="w-5 h-5 opacity-70 text-[#21302A]" />
+                                  <span className="text-sm font-medium truncate opacity-90 text-[#21302A]">{att.name}</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {isEmptyAi ? (
+                      <div className="w-full flex flex-col gap-3">
+                        {message.streamingSources && message.streamingSources.length > 0 && (
+                          <div className="w-full flex flex-col gap-1.5 font-sans select-none border-b border-[#21302A]/6 pb-3">
+                            <span className="text-[10px] uppercase tracking-wider text-[#21302A]/40 font-bold">
+                              {language === "en" ? "Web search sources:" : "Sumber penelusuran web:"}
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                              {message.streamingSources.map((src, srcIdx) => (
+                                <motion.a
+                                  key={srcIdx}
+                                  href={src.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  initial={{ opacity: 0, scale: 0.9, y: 5 }}
+                                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                                  transition={{ duration: 0.3, delay: srcIdx * 0.05 }}
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#FFFDF6] hover:bg-[#F7F4E9] border border-[#21302A]/8 hover:border-[#21302A]/15 rounded-full text-xs font-medium text-[#21302A] transition-all shadow-2xs cursor-pointer active:scale-95 animate-fadeIn"
+                                >
+                                  <img
+                                    src={`https://www.google.com/s2/favicons?domain=${src.domain}&sz=32`}
+                                    alt={src.domain}
+                                    onError={(e) => { e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'; }}
+                                    className="w-3.5 h-3.5 rounded-full"
+                                  />
+                                  <span className="truncate max-w-[120px]">{src.domain}</span>
+                                </motion.a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <ShimmerLoader message={message.streamingMessage || t.processing} />
+                      </div>
+                    ) : (
+                      <div className="text-[15px] leading-relaxed break-words markdown-content w-full">
+                        {isUser && editingMessageId === message.id ? (
+                          <div className="w-full flex flex-col gap-2.5 mt-1">
+                            <textarea
+                              value={editText}
+                              onChange={(e) => setEditText(e.target.value)}
+                              className="w-full bg-[#1F2C27] text-white border border-white/20 rounded-xl p-3 outline-none resize-none text-[15px] font-sans"
+                              rows={3}
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                onClick={() => setEditingMessageId(null)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 text-[#FFFDF6] transition-colors cursor-pointer"
+                              >
+                                {t.cancel}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (editText.trim() && onEditSendMessage) {
+                                    onEditSendMessage(message.id, editText);
+                                    setEditingMessageId(null);
+                                  }
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer"
+                              >
+                                {t.saveSend}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <ReactMarkdown
+                            components={{
+                              p: ({node, children, ...props}) => {
+                                const text = React.Children.toArray(children).map(child => {
+                                  if (typeof child === 'string') return child;
+                                  if (child && child.props && child.props.children) {
+                                    if (typeof child.props.children === 'string') {
+                                      return child.props.children;
+                                    }
+                                    if (Array.isArray(child.props.children)) {
+                                      return child.props.children.join('');
+                                    }
+                                  }
+                                  return '';
+                                }).join('').trim();
+
+                                 if (text.startsWith("Kesimpulan:") || text.startsWith("Conclusion:")) {
+                                  const statusMatch = text.match(/(?:Kesimpulan|Conclusion):\s*\**([A-Z\s]+)\**/i);
+                                  if (statusMatch) {
+                                    const status = statusMatch[1].trim().toUpperCase();
+                                    
+                                    let config = {
+                                      bg: "from-emerald-500/12 to-emerald-600/5 text-emerald-800 border-emerald-500/20 shadow-emerald-500/5",
+                                      dot: "bg-emerald-500 shadow-emerald-500/50",
+                                      icon: <ShieldCheck className="w-5 h-5 text-emerald-600" />,
+                                      label: language === "en" ? "Factually Verified / True" : "Terverifikasi Faktual / Benar"
+                                    };
+                                    
+                                    if (status.includes("BENAR") || status.includes("FAKTA") || status.includes("ASLI") || status.includes("AMAN") || status.includes("TRUE") || status.includes("FACT") || status.includes("GENUINE") || status.includes("SAFE")) {
+                                      if (status.includes("TIDAK") || status.includes("NOT") || status.includes("UN")) {
+                                        config = {
+                                          bg: "from-rose-500/12 to-rose-600/5 text-rose-800 border-rose-500/20 shadow-rose-500/5",
+                                          dot: "bg-rose-500 shadow-rose-500/50 animate-pulse",
+                                          icon: <AlertTriangle className="w-5 h-5 text-rose-600" />,
+                                          label: language === "en" ? "Indicated Hoax / False" : "Terindikasi Hoaks / Salah"
+                                        };
+                                      }
+                                    } else if (status.includes("SALAH") || status.includes("HOAKS") || status.includes("MISLEADING") || status.includes("PALSU") || status.includes("FALSE") || status.includes("HOAX") || status.includes("FAKE")) {
+                                      config = {
+                                        bg: "from-rose-500/12 to-rose-600/5 text-rose-800 border-rose-500/20 shadow-rose-500/5",
+                                        dot: "bg-rose-500 shadow-rose-500/50 animate-pulse",
+                                        icon: <AlertTriangle className="w-5 h-5 text-rose-600" />,
+                                        label: language === "en" ? "Indicated Hoax / False" : "Terindikasi Hoaks / Salah"
+                                      };
+                                    } else {
+                                      config = {
+                                        bg: "from-amber-500/12 to-amber-600/5 text-amber-800 border-amber-500/20 shadow-amber-500/5",
+                                        dot: "bg-amber-500 shadow-amber-500/50",
+                                        icon: <Info className="w-5 h-5 text-amber-600" />,
+                                        label: language === "en" ? "Information Cannot Be Verified" : "Informasi Tidak Dapat Diverifikasi"
+                                      };
+                                    }
+
+                                    const cleanText = text.replace(/(?:Kesimpulan|Conclusion):\s*\**[A-Z\s]+\**\.?\s*/i, "");
+
+                                    return (
+                                      <div className="w-full flex flex-col">
+                                        <motion.div 
+                                          whileHover={{ scale: 1.01, y: -1 }}
+                                          transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                                          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 rounded-2xl border bg-gradient-to-r ${config.bg} font-sans my-3 md:my-5 shadow-sm relative overflow-hidden select-none`}
+                                        >
+                                          <div className="absolute -right-8 -top-8 w-24 h-24 rounded-full bg-current opacity-[0.03] blur-xl pointer-events-none" />
+                                          <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-xl bg-white/60 dark:bg-black/10 shadow-xs border border-white/40">
+                                              {config.icon}
+                                            </div>
+                                            <div className="flex flex-col">
+                                              <span className="text-[10px] uppercase tracking-widest text-[#5C6E60]/80 font-bold leading-none mb-1">
+                                                {t.analysisTitle}
+                                              </span>
+                                              <span className="text-[15px] font-extrabold tracking-tight uppercase leading-tight">
+                                                {language === "en" ? "CONCLUSION" : "KESIMPULAN"}: {status}
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-2 self-start sm:self-auto bg-white/50 border border-white/20 dark:bg-black/5 px-3 py-1.5 rounded-full text-xs font-semibold">
+                                            <span className="relative flex h-2 w-2">
+                                              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${config.dot}`} />
+                                              <span className={`relative inline-flex rounded-full h-2 w-2 ${config.dot}`} />
+                                            </span>
+                                            <span className="opacity-90">{config.label}</span>
+                                          </div>
+                                        </motion.div>
+                                        {cleanText && <p className="mb-3 last:mb-0 whitespace-pre-wrap text-[15px] leading-relaxed break-words text-[#21302A]">{cleanText}</p>}
+                                      </div>
+                                    );
+                                  }
+                                }
+
+                                return <p className="mb-3 last:mb-0 whitespace-pre-wrap" {...props}>{children}</p>;
+                              },
+                              strong: ({node, ...props}) => <strong className="font-bold text-inherit" {...props} />,
+                              ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-3" {...props} />,
+                              ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-3" {...props} />,
+                              li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                              h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-2" {...props} />,
+                              h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-3 mt-2" {...props} />,
+                              h3: ({node, children, ...props}) => {
+                                const text = React.Children.toArray(children).map(child => typeof child === 'string' ? child : '').join('');
+                                if (text.includes("KESIMPULAN:") || text.includes("CONCLUSION:")) {
+                                  const parts = text.split(text.includes("KESIMPULAN:") ? "KESIMPULAN:" : "CONCLUSION:");
+                                  const status = parts[1].trim().toUpperCase();
+                                  
+                                  let config = {
+                                    bg: "from-emerald-500/12 to-emerald-600/5 text-emerald-800 border-emerald-500/20 shadow-emerald-500/5",
+                                    dot: "bg-emerald-500 shadow-emerald-500/50",
+                                    icon: <ShieldCheck className="w-5 h-5 text-emerald-600" />,
+                                    label: language === "en" ? "Factually Verified / True" : "Terverifikasi Faktual / Benar"
+                                  };
+                                  
+                                  if (status.includes("BENAR") || status.includes("FAKTA") || status.includes("ASLI") || status.includes("AMAN") || status.includes("TRUE") || status.includes("FACT") || status.includes("GENUINE") || status.includes("SAFE")) {
+                                    if (status.includes("TIDAK") || status.includes("NOT") || status.includes("UN")) {
+                                      config = {
+                                        bg: "from-rose-500/12 to-rose-600/5 text-rose-800 border-rose-500/20 shadow-rose-500/5",
+                                        dot: "bg-rose-500 shadow-rose-500/50 animate-pulse",
+                                        icon: <AlertTriangle className="w-5 h-5 text-rose-600" />,
+                                        label: language === "en" ? "Indicated Hoax / False" : "Terindikasi Hoaks / Salah"
+                                      };
+                                    }
+                                  } else if (status.includes("SALAH") || status.includes("HOAKS") || status.includes("MISLEADING") || status.includes("PALSU") || status.includes("FALSE") || status.includes("HOAX") || status.includes("FAKE")) {
+                                    config = {
+                                      bg: "from-rose-500/12 to-rose-600/5 text-rose-800 border-rose-500/20 shadow-rose-500/5",
+                                      dot: "bg-rose-500 shadow-rose-500/50 animate-pulse",
+                                      icon: <AlertTriangle className="w-5 h-5 text-rose-600" />,
+                                      label: language === "en" ? "Indicated Hoax / False" : "Terindikasi Hoaks / Salah"
+                                    };
+                                  } else {
+                                    config = {
+                                      bg: "from-amber-500/12 to-amber-600/5 text-amber-800 border-amber-500/20 shadow-amber-500/5",
+                                      dot: "bg-amber-500 shadow-amber-500/50",
+                                      icon: <Info className="w-5 h-5 text-amber-600" />,
+                                      label: language === "en" ? "Information Cannot Be Verified" : "Informasi Tidak Dapat Diverifikasi"
+                                    };
+                                  }
+                                  
+                                  return (
+                                    <motion.div 
+                                      whileHover={{ scale: 1.01, y: -1 }}
+                                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                                      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 rounded-2xl border bg-gradient-to-r ${config.bg} font-sans my-3 md:my-5 shadow-sm relative overflow-hidden select-none`}
+                                    >
+                                      <div className="absolute -right-8 -top-8 w-24 h-24 rounded-full bg-current opacity-[0.03] blur-xl pointer-events-none" />
+                                      <div className="flex items-center gap-3">
+                                        <div className="p-2 rounded-xl bg-white/60 dark:bg-black/10 shadow-xs border border-white/40">
+                                          {config.icon}
+                                        </div>
+                                        <div className="flex flex-col">
+                                          <span className="text-[10px] uppercase tracking-widest text-[#5C6E60]/80 font-bold leading-none mb-1">
+                                            {t.analysisTitle}
+                                          </span>
+                                          <span className="text-[15px] font-extrabold tracking-tight uppercase leading-tight">
+                                            {language === "en" ? "CONCLUSION" : "KESIMPULAN"}: {status}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2 self-start sm:self-auto bg-white/50 border border-white/20 dark:bg-black/5 px-3 py-1.5 rounded-full text-xs font-semibold">
+                                        <span className="relative flex h-2 w-2">
+                                          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${config.dot}`} />
+                                          <span className={`relative inline-flex rounded-full h-2 w-2 ${config.dot}`} />
+                                        </span>
+                                        <span className="opacity-90">{config.label}</span>
+                                      </div>
+                                    </motion.div>
+                                  );
+                                }
+                                return <h3 className="text-md font-bold mb-2 mt-2" {...props}>{children}</h3>;
+                              },
+                              a: ({node, ...props}) => (
+                                <a 
+                                  className="text-blue-400 hover:text-blue-300 underline decoration-blue-500/50 hover:decoration-blue-400 underline-offset-2 transition-colors font-medium break-all" 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  {...props} 
+                                />
+                              ),
+                              blockquote: ({node, ...props}) => (
+                                <blockquote className="border-l-4 border-[#21302A]/20 pl-4 py-1 italic my-3 bg-[#21302A]/5 rounded-r-md" {...props} />
+                              )
+                            }}
+                          >
+                            {mainText}
+                          </ReactMarkdown>
+                        )}
+
+                        {/* RAG sources accordion dropdown */}
+                        {!isUser && ragSources && ragSources.length > 0 && (
+                          <RAGSourcesAccordion sources={ragSources} language={language} />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Bagian Bawah Bubble (Timestamp & Action Buttons) */}
+                  <div className={`flex items-center gap-3 mt-1.5 px-1 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+                    <span className="text-[11px] font-medium text-[#21302A]/40 mt-0.5">
+                      {formatTime(message.timestamp)}
+                    </span>
+                    
+                    {isUser && (
+                      <div className="flex items-center gap-1 opacity-60 hover:opacity-100 transition-opacity duration-200 ml-1">
+                        <button
+                          onClick={() => {
+                            setEditingMessageId(message.id);
+                            setEditText(message.text);
+                          }}
+                          className="p-1 text-[#5C6E60] hover:text-[#21302A] hover:bg-[#21302A]/5 rounded-md transition-colors active:scale-90 cursor-pointer"
+                          title={language === "en" ? "Edit Query" : "Edit Perintah"}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleCopy(message.text)}
+                          className="p-1 text-[#5C6E60] hover:text-[#21302A] hover:bg-[#21302A]/5 rounded-md transition-colors active:scale-90 cursor-pointer"
+                          title={language === "en" ? "Copy Query" : "Salin Perintah"}
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Action Buttons AI (Regenerate, Copy, Feedback) */}
+                    {!isUser && message.id !== "welcome" && !message.isStreaming && (
+                      <div className="flex items-center gap-1 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-all duration-300 ml-1 ease-out focus-within:opacity-100">
+                        
+                        {/* Feedback Thumbs */}
+                        <div className="flex items-center bg-[#21302A]/5 rounded-md p-0.5 mr-1">
+                          <button 
+                            onClick={() => handleFeedback(message.id, 'up')}
+                            className={`p-1 rounded-md transition-colors ${feedbackState[message.id] === 'up' ? 'text-green-600 bg-green-100' : 'text-[#5C6E60] hover:bg-[#21302A]/10 hover:text-[#21302A]'}`}
+                            title={language === "en" ? "Good Response / Relevant" : "Tanggapan Baik / Relevan"}
+                          >
+                            <ThumbsUp className="w-3.5 h-3.5" />
+                          </button>
+                          <div className="w-[1px] h-3 bg-[#21302A]/10 mx-0.5"></div>
+                          <button 
+                            onClick={() => handleFeedback(message.id, 'down')}
+                            className={`p-1 rounded-md transition-colors ${feedbackState[message.id] === 'down' ? 'text-red-600 bg-red-100' : 'text-[#5C6E60] hover:bg-[#21302A]/10 hover:text-[#21302A]'}`}
+                            title={language === "en" ? "Bad Response / Inaccurate" : "Tanggapan Buruk / Tidak Akurat"}
+                          >
+                            <ThumbsDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <button onClick={() => handleCopy(mainText)} className={ACTION_BTN} title={language === "en" ? "Copy Text" : "Salin Teks"}>
+                          <Copy className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{t.copy}</span>
+                        </button>
+                        
+                        {/* Tampilkan regenerate hanya di pesan terakhir yang BUKAN error/loading */}
+                        {isLastMessage && !isLoading && onRegenerate && (
+                          <button onClick={onRegenerate} className={ACTION_BTN} title={language === "en" ? "Regenerate Response" : "Buat Ulang Jawaban"}>
+                            <RefreshCw className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{t.regenerate}</span>
+                          </button>
+                        )}
+                        {/* Jika obrolan panjang, tampilkan opsi follow up di sini saja (kecuali pesan error) */}
+                        {isLastMessage && !isLoading && hasConversation && (
+                          <>
+                            <div className="w-px h-3.5 bg-[#21302A]/20 mx-1"></div>
+                            <button onClick={() => handleSend(language === "en" ? "Summarize briefly" : "Ringkaskan lebih padat")} className={ACTION_BTN}>
+                              <AlignLeft className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{t.summarize}</span>
+                            </button>
+                            <button onClick={() => handleSend(language === "en" ? "Show official valid sources" : "Tunjukkan sumber resmi yang valid")} className={ACTION_BTN}>
+                              <ExternalLink className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{t.sourceBtn}</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            );
+          })}
+
+          <div ref={messagesEndRef} className="h-4" />
+        </div>
+      </div>
+      )}
+
+      {/* ── Landing Page Content ── */}
+      {!hasConversation && (
+        <div className="flex-1 flex flex-col justify-center relative w-full min-h-0 pt-10 pb-6 lg:pt-10 lg:pb-10">
+          {/* Background Watermark Logo */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.25] z-0 overflow-hidden">
+            <img src="/logo2.png" alt="Factize Watermark" className="w-[400px] h-[400px] md:w-[700px] md:h-[700px] object-contain drop-shadow-sm" />
+          </div>
+
+          {/* ── Landing Page Greeting ── */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="px-4 md:px-8 w-full z-10 flex flex-col items-center mt-3 md:mt-8"
+            onClick={() => setShowModelDropdown(false)}
+          >
+              <h2 
+                className="text-[28px] md:text-[52px] font-serif text-[#21302A] mb-3 md:mb-4 text-center tracking-tight leading-tight max-w-3xl min-h-[72px] md:min-h-[64px] flex items-center justify-center select-none cursor-default"
+                onMouseEnter={() => {
+                  setPhraseIndex((prev) => (prev + 1) % ALTERNATIVE_PHRASES.length);
+                }}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={phraseIndex}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="block"
+                  >
+                    {ALTERNATIVE_PHRASES[phraseIndex]}
+                  </motion.span>
+                </AnimatePresence>
+              </h2>
+             <p className="text-[#5C6E60] text-xs md:text-[17px] text-center max-w-xl mb-6 md:mb-12">
+                {t.landingIntro}
+             </p>
+          </motion.div>
+
+          {/* ── Dynamic Quick Action Pills ── */}
+          <div className="px-4 md:px-8 pt-2 md:pt-5 z-10 w-full" onClick={() => setShowModelDropdown(false)}>
+            <div className="max-w-3xl mx-auto">
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="flex flex-col md:flex-row md:flex-wrap justify-center items-center gap-2 md:gap-2.5"
+              >
+                {/* Row 1 for Mobile (side-by-side), normal flow for Desktop */}
+                <div className="flex flex-row gap-2 w-full md:w-auto justify-center">
+                  <button 
+                    onClick={() => setInputText(language === "en" ? "Verify the rumor about Kemensos social aid registration via unofficial links." : "Cek kebenaran rumor pendaftaran Bansos Kemensos lewat tautan tidak resmi.")} 
+                    className={`${PILL} flex-1 md:flex-initial justify-center text-center`}
+                  >
+                    <LinkIcon className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#5C6E60] flex-shrink-0" />
+                    <span className="text-[10px] md:text-[13px] leading-tight break-words">{t.pillBansos}</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => setInputText(language === "en" ? "What is the emergency evacuation procedure for flash floods and what is the BNPB contact number?" : "Bagaimana prosedur evakuasi darurat banjir bandang dan apa nomor kontak BNPB?")} 
+                    className={`${PILL} flex-1 md:flex-initial justify-center text-center`}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#5C6E60] flex-shrink-0" />
+                    <span className="text-[10px] md:text-[13px] leading-tight break-words">{t.pillBencana}</span>
+                  </button>
+                </div>
+
+                {/* Row 2 for Mobile (centered), normal flow for Desktop */}
+                <div className="flex flex-row w-full md:w-auto justify-center">
+                  <button 
+                    onClick={() => setInputText(language === "en" ? "What are the document requirements for self-registration of BPJS Health services?" : "Apa saja syarat dokumen pendaftaran mandiri layanan BPJS Kesehatan?")} 
+                    className={`${PILL} w-full max-w-[260px] md:w-auto md:max-w-none justify-center text-center`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#5C6E60] flex-shrink-0" />
+                    <span className="text-[10px] md:text-[13px] leading-tight break-words">{t.pillBpjs}</span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Stop Generation Button ── */}
+      <AnimatePresence>
+        {isLoading && onStopGeneration && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="flex justify-center mb-4 absolute bottom-24 left-0 right-0 z-20 pointer-events-none"
+          >
+            <button 
+              onClick={onStopGeneration}
+              className="pointer-events-auto flex items-center gap-2 bg-[#FFFDF6] border border-[#21302A]/20 text-[#21302A] px-4 py-2 rounded-full text-xs font-semibold shadow-md hover:bg-[#F7F4E9] active:scale-95 transition-all"
+            >
+              <Square className="w-3.5 h-3.5 fill-current" />
+              {language === "en" ? "Stop Generation" : "Hentikan Pembuatan"}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Input Bar ── */}
+      <div className={`px-4 md:px-8 z-10 w-full ${hasConversation ? 'pb-3 md:pb-6 bg-gradient-to-t from-[#FFFDF6] to-transparent pt-1.5' : 'pb-4 md:pb-8'}`} onClick={() => setShowModelDropdown(false)}>
+        <div className="max-w-3xl mx-auto">
+          
+          <div className="flex flex-col gap-2">
+            
+            {/* Attachment Previews on Mobile (rendered above input bar) */}
+            <div className="lg:hidden">
+              {(attachments.length > 0 || detectedUrls.length > 0) && (
+                <div className="flex flex-wrap gap-2 px-2 pb-2">
+                  {attachments.map((att, idx) => {
+                    const isImage = att.type?.startsWith('image/');
+                    const objectUrl = isImage ? URL.createObjectURL(att) : null;
+                    return (
+                      <div key={idx} className="relative group animate-fadeIn">
+                        {isImage ? (
+                          <div className="w-14 h-14 rounded-[10px] overflow-hidden border border-[#21302A]/10 relative shadow-sm bg-gray-100">
+                            <img src={objectUrl} alt={att.name} className="w-full h-full object-cover" />
+                            <button
+                              onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                              className="absolute top-0.5 right-0.5 text-white bg-black/60 rounded-full w-4.5 h-4.5 flex items-center justify-center text-[10px] font-bold"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="bg-[#E5E0D0] text-[#21302A] px-2.5 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm border border-[#21302A]/5">
+                            <Paperclip className="w-3 h-3" />
+                            <span className="max-w-[100px] truncate font-medium">{att.name}</span>
+                            <button
+                              onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                              className="hover:text-[#D9534F] text-sm font-bold ml-0.5 leading-none"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
+                  {detectedUrls.map((url, idx) => {
+                    try {
+                      const domain = new URL(url).hostname.replace('www.', '');
+                      return (
+                        <div key={`url-${idx}`} className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm animate-fadeIn">
+                          <LinkIcon className="w-3 h-3" />
+                          <span className="font-semibold truncate max-w-[120px]">{domain}</span>
+                        </div>
+                      );
+                    } catch { return null; }
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Model Selector (floating above the input capsule) */}
+            <div className="lg:hidden flex justify-start gap-1.5 pl-2 mb-0.5 relative">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowModelDropdown(!showModelDropdown); }}
+                className="flex items-center gap-1 bg-[#F7F4E9] border border-[#21302A]/10 rounded-full px-3 py-1.5 text-[11px] font-bold text-[#21302A] hover:bg-[#E8E4D8] transition-colors shadow-2xs cursor-pointer select-none active:scale-95"
+              >
+                {selectedModel === 'gemini-2.5-flash' ? <><Zap className="w-3.5 h-3.5 text-amber-500" fill="currentColor" /> Flash Mode</> : <><Brain className="w-3.5 h-3.5 text-indigo-500" /> Deep Check</>}
+                <ChevronDown className="w-3 h-3 opacity-60 ml-0.5" />
+              </button>
+              
+              {showModelDropdown && (
+                <div className="absolute left-2 bottom-full mb-1.5 w-48 bg-white border border-[#21302A]/10 rounded-xl shadow-lg py-1.5 z-50 animate-fadeIn">
+                  <button 
+                    onClick={() => { onModelChange('gemini-2.5-flash'); setShowModelDropdown(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#F7F4E9] flex items-center gap-2 ${selectedModel === 'gemini-2.5-flash' ? 'font-bold bg-[#F7F4E9]' : ''}`}
+                  >
+                    <Zap className="w-3.5 h-3.5 text-amber-500" fill="currentColor" /> Flash Mode <span className="ml-auto text-[9px] text-[#5C6E60]">Fast</span>
+                  </button>
+                  <button 
+                    onClick={() => { onModelChange('gemini-2.5-pro'); setShowModelDropdown(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#F7F4E9] flex items-center gap-2 ${selectedModel === 'gemini-2.5-pro' ? 'font-bold bg-[#F7F4E9]' : ''}`}
+                  >
+                    <Brain className="w-3.5 h-3.5 text-indigo-500" /> Deep Fact-Check <span className="ml-auto text-[9px] text-[#5C6E60]">Pro</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* ── Main Input Capsule/Box ── */}
+            <motion.div 
+              variants={jellyInputVariants}
+              initial="visible"
+              animate={isMobileMenuOpen ? "hidden" : "visible"}
+              style={{ 
+                WebkitBackdropFilter: (typeof window !== "undefined" && window.innerWidth < 768) ? "none" : "blur(24px)",
+                willChange: "transform, opacity" 
+              }}
+              className="bg-[#FFFDF6]/95 md:bg-white/45 backdrop-blur-none md:backdrop-blur-xl border border-[#21302A]/12 shadow-[0_12px_28px_rgba(33,48,42,0.08),_inset_0_1px_1px_rgba(255,255,255,0.9)] transition-all duration-200 focus-within:bg-[#FFFDF6] md:focus-within:bg-white/65 focus-within:border-[#21302A]/24 focus-within:shadow-[0_16px_40px_rgba(33,48,42,0.12)] flex md:flex-col flex-row items-center md:items-stretch rounded-full md:rounded-[24px] p-1.5 pl-3 pr-2 md:p-2.5 md:pl-2.5 md:pr-2.5 min-h-[52px] md:min-h-[140px] w-full transform-gpu"
+            >
+              
+              {/* Mobile Left Actions (Plus button inside capsule) */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="md:hidden hover:text-[#21302A] text-[#21302A]/50 transition-colors p-2 rounded-full hover:bg-[#E5EBE8] active:scale-95 flex-shrink-0 cursor-pointer"
+                title="Unggah file"
+                type="button"
+                disabled={isLoading}
+              >
+                <Plus className="w-5.5 h-5.5" strokeWidth={2.5} />
+              </button>
+
+              {/* Previews (Attachments & URLs) - Desktop ONLY (inside box) */}
+              <div className="hidden md:block">
+                {(attachments.length > 0 || detectedUrls.length > 0) && (
+                  <div className="flex flex-wrap gap-3 px-3 pt-2 mb-2">
+                    {attachments.map((att, idx) => {
+                      const isImage = att.type?.startsWith('image/');
+                      const objectUrl = isImage ? URL.createObjectURL(att) : null;
+                      return (
+                        <div key={idx} className="relative group animate-fadeIn">
+                          {isImage ? (
+                            <div className="w-16 h-16 rounded-[12px] overflow-hidden border border-[#21302A]/10 relative shadow-sm bg-gray-100">
+                              <img src={objectUrl} alt={att.name} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                 <button
+                                   onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                                   className="text-white hover:text-red-400 p-1.5 bg-black/50 rounded-full active:scale-95 transition-transform"
+                                 >
+                                   ×
+                                 </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-[#E5E0D0] text-[#21302A] px-3 py-2 rounded-xl text-xs flex items-center gap-2 shadow-sm border border-[#21302A]/5">
+                              <Paperclip className="w-3.5 h-3.5" />
+                              <span className="max-w-[120px] truncate font-medium">{att.name}</span>
+                              <button
+                                onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                                className="hover:text-[#D9534F] transition-colors font-bold ml-1 text-base leading-none"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    
+                    {detectedUrls.map((url, idx) => {
+                      try {
+                        const domain = new URL(url).hostname.replace('www.', '');
+                        return (
+                          <div key={`url-${idx}`} className="bg-blue-50 text-blue-700 border border-blue-200 px-3 py-2 rounded-xl text-xs flex items-center gap-2 shadow-sm animate-fadeIn">
+                            <LinkIcon className="w-3.5 h-3.5" />
+                            <span className="font-semibold truncate max-w-[150px]">{domain}</span>
+                          </div>
+                        );
+                      } catch { return null; }
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <textarea
+                ref={inputRef}
+                value={inputText}
+                onChange={(e) => {
+                  setInputText(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                rows={1}
+                placeholder={t.inputPlaceholder}
+                className="flex-1 bg-transparent outline-none text-[#21302A] placeholder:text-[#21302A]/30 text-[15px] resize-none overflow-hidden min-h-[24px] md:min-h-[40px] px-2 py-1 md:px-3 md:pt-3 md:pb-2"
+                disabled={isLoading}
+                style={{ maxHeight: '200px' }}
+              />
+              
+              {/* Mobile Right Actions (Send arrow inside capsule) */}
+              <div className="md:hidden flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  onClick={() => handleSend()}
+                  disabled={(!inputText.trim() && attachments.length === 0) || isLoading}
+                  className="bg-[#21302A] hover:bg-[#2F4236] disabled:bg-[#F2F2F2] disabled:text-[#A0A0A0] text-[#FFFDF6] p-2 rounded-full transition-all duration-150 disabled:cursor-not-allowed active:scale-95 shadow-sm cursor-pointer"
+                  title={language === "en" ? "Send" : "Kirim"}
+                  type="button"
+                >
+                  <ArrowUp className="w-4.5 h-4.5" strokeWidth={2.5} />
+                </button>
+              </div>
+
+              {/* Desktop Bottom Actions Row (Hidden on mobile) */}
+              <div className="hidden md:flex items-center justify-between mt-auto px-1 pb-1">
+                <div className="flex items-center gap-1 text-[#21302A]/50">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="hover:text-[#21302A] transition-colors p-2 rounded-full hover:bg-[#E5EBE8] active:scale-95 cursor-pointer"
+                    title={language === "en" ? "Upload file" : "Unggah file"}
+                    type="button"
+                    disabled={isLoading}
+                  >
+                    <Plus className="w-5 h-5" strokeWidth={2.5} />
+                  </button>
+                </div>
+                
+                <button
+                  onClick={() => handleSend()}
+                  disabled={(!inputText.trim() && attachments.length === 0) || isLoading}
+                  className="bg-[#21302A] hover:bg-[#2F4236] disabled:bg-[#F2F2F2] disabled:text-[#A0A0A0] text-[#FFFDF6] p-2 rounded-full transition-all duration-150 disabled:cursor-not-allowed active:scale-95 shadow-sm cursor-pointer"
+                  title={language === "en" ? "Send" : "Kirim"}
+                  type="button"
+                >
+                  <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
+                </button>
+              </div>
+              
+            </motion.div>
+
+          </div>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            accept="image/*,application/pdf"
+            disabled={isLoading}
+          />
+          <p className="text-center text-[10px] text-[#21302A]/40 mt-1.5 md:mt-3 font-semibold select-none tracking-wide">
+            {t.aiDisclaimer}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
